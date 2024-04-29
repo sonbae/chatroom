@@ -16,13 +16,13 @@ logger.addHandler(consoleHandler)
 
 logger.debug('initialized')
 
+group_chats = {}
 client_list = [] # TODO: replace with something else?
 
-def broadcast_message(conn, message):
-    print(message)
+def broadcast_message(conn, group, message):
     logger.info('broading cast message: {}'.format(message))
 
-    for client in client_list:
+    for client in group_chats[group]:
         if conn != client:
             try:
                 client.send(message.encode())
@@ -32,13 +32,31 @@ def broadcast_message(conn, message):
                 logger.info('he died')
 
 
+# def process_message(message):
+#     splits = [x.strip() for x in message.splits(':')]
+#     if splits[1] not in groups.keys:
+
+
+
 def client_thread(conn, addr):
+    message = conn.recv(4096).decode().strip()
+    splits = [x.strip() for x in message.split(':')]
+    group = splits[1]
+    logger.info('splits?: {}'.format(group))
+
+    if splits[1] not in group_chats.keys():
+        logger.info('split not found, creating: {}'.format(group))
+        group_chats[group] = []
+
+    logger.info('adding conn to group: {}'.format(group))
+    group_chats[group].append(conn)
+
     conn.send('welcome\n'.encode())
     logger.info('sent welcome to {}'.format(addr[0]))
 
     while True:
         try:
-            message = conn.recv(2048).decode().strip()
+            message = conn.recv(4096).decode().strip()
             logger.info(message)
 
             if message:
@@ -46,6 +64,7 @@ def client_thread(conn, addr):
                 mes = '<' + addr[0] + '> ' + message + '\n'
                 broadcast_message(
                     conn,
+                    group,
                     mes,
                 )
             else:
